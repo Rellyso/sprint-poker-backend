@@ -63,7 +63,7 @@ router.post('/login', async (req, res) => {
   console.log(user)
 
   if (!user) {
-    res.status(401).json({
+    res.status(401).send({
       message: 'Usuário não encontrado',
     })
     return
@@ -72,7 +72,7 @@ router.post('/login', async (req, res) => {
   const passwordCheck = await user?.comparePassword(data.password);
 
   if (!passwordCheck) {
-    res.status(401).json({
+    res.status(401).send({
       message: 'Credenciais inválidas',
     })
     return
