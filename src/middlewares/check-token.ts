@@ -1,15 +1,23 @@
 import { NextFunction, Request, Response } from "express";
+import { getToken } from "../utils/get-token";
+import { verifyToken } from "../utils/veriy-token";
 
 export function checkToken(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = getToken(req);
 
   if (!token) {
     res.status(401).json({
-      message: 'Acesso negado!'
-    })
-  } else {
-    next();
+      message: "Acesso negado!",
+    });
+    return;
   }
 
+  try {
+    verifyToken(token);
+    next();
+  } catch (error) {
+    res.status(400).json({
+      message: "Token inválido!",
+    });
+  }
 }
