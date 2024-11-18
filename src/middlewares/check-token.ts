@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { getToken } from "../utils/get-token";
-import { verifyToken } from "../utils/veriy-token";
+import { verifyToken } from "../utils/verify-token";
 
 export function checkToken(req: Request, res: Response, next: NextFunction) {
   const token = getToken(req);
