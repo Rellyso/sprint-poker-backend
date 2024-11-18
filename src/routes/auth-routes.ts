@@ -1,10 +1,12 @@
 import { z } from "zod";
-import { User } from "../models/user";
+import { IUser, User } from "../models/user";
 import { Router } from "express";
-import { decode, sign } from "jsonwebtoken";
+import { sign } from "jsonwebtoken";
 import { handleError } from "../utils/error-handler";
 import { getToken } from "../utils/get-token";
-import { verifyToken } from "../utils/veriy-token";
+import axios from "axios";
+import { verifyToken } from "../utils/verify-token";
+import passport from "passport";
 
 const router = Router();
 
@@ -24,11 +26,8 @@ router.post("/register", async (req, res) => {
     const data = registerUserSchema.parse(req.body);
 
     const userExists = await User.findOne({ email: data.email });
-
     if (userExists) {
-      res.status(422).json({
-        message: "Por favor, utilize outro e-mail!",
-      });
+      res.status(422).json({ message: "Por favor, utilize outro e-mail!" });
       return;
     }
 
@@ -39,13 +38,11 @@ router.post("/register", async (req, res) => {
     });
 
     await user.save();
-
     res.status(201).json({
       message: "Usuário criado com sucesso",
       name: data.name,
       email: data.email,
     });
-    return;
   } catch (error) {
     const formattedErrors = handleError(error);
     if (formattedErrors) {
@@ -63,73 +60,90 @@ router.post("/login", async (req, res) => {
   });
 
   const data = loginUserSchema.parse(req.body);
-
   const user = await User.findOne({ email: data.email });
-
   if (!user) {
-    res.status(401).send({
-      message: "Usuário não encontrado",
-    });
+    res.status(401).send({ message: "Usuário não encontrado" });
     return;
   }
 
-  const passwordCheck = await user?.comparePassword(data.password);
-
+  const passwordCheck = await user.comparePassword(data.password);
   if (!passwordCheck) {
-    res.status(401).send({
-      message: "Credenciais inválidas",
-    });
+    res.status(401).send({ message: "Credenciais inválidas" });
     return;
   }
 
   const token = sign({ userId: user._id }, process.env.JWT_SECRET!, {
     expiresIn: "24h",
   });
-
-  res.status(200).json({
-    message: "Login efetuado com sucesso",
-    token,
-    userId: user._id,
-    name: user.name,
-    email: user.email,
-  });
+  res
+    .status(200)
+    .json({
+      message: "Login efetuado com sucesso",
+      token,
+      name: user.name,
+      email: user.email,
+      userId: user._id,
+    });
 });
 
-router.post("/session", async (req, res) => {
+router.get("/google", passport.authenticate("google", { session: false, scope: ["email", "profile"] }));
+
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { session: false }),
+  async (req, res) => {
+    const user = req.user as IUser;
+
+    const token = sign({ userId: user._id }, process.env.JWT_SECRET!, {
+      expiresIn: "24h",
+    });
+
+    res.redirect(`${process.env.CLIENT_URL}/login/success?token=${token}`);
+  }
+);
+
+router.get("/validate-token", async (req, res) => {
   const token = getToken(req);
 
   if (!token) {
-    res.status(401).send({
-      message: "Token inválido",
-    });
+    res.status(401).send({ message: "Token inválido" });
     return;
   }
 
   try {
     const data: { userId: string } = verifyToken(token) as { userId: string };
-
-    const user = await User.findOne({ _id: data.userId });
-
+    const user = await User.findById(data.userId);
     if (!user) {
-      res.status(401).send({
-        message: "Usuário não encontrado",
-      });
+      res.status(401).send({ message: "Usuário não encontrado" });
       return;
     }
 
-    res.status(200).json({
-      userId: user._id,
+    const sessionUser = {
+      id: user._id,
       name: user.name,
       email: user.email,
-    });
-    return;
+    }
+
+    res
+      .status(200)
+      .json({ token, user: sessionUser });
   } catch (err) {
     console.log(err);
-    res.status(401).send({
-      message: "Token inválido",
-    });
-    return;
+    res.status(401).send({ error: true, message: "Token inválido" });
   }
+});
+
+
+router.get("/logout", (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      res.status(500).json({ message: "Erro ao deslogar" });
+      return;
+    }
+    res.status(200).json({ message: "Logout efetuado com sucesso" });
+  });
+
+  res.redirect(`${process.env.CLIENT_URL}/login`);
 });
 
 export const authRoutes = router;

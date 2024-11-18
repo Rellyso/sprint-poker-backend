@@ -7,13 +7,21 @@ import http from 'http';
 import socketIo from 'socket.io';
 import { Message } from './models/message';
 import { userRoutes } from './routes/user-routes';
-
+import passport from './auth/passport-config';
+import { MONGO_URL } from './constants/mongo-url';
 
 configDotenv();
 const app = express();
 
-app.use(cors())
+app.use(cors({
+  origin: process.env.CLIENT_URL,
+  credentials: true, 
+}))
+
 app.use(express.json())
+
+app.use(passport.initialize())
+
 app.use('/api/auth', authRoutes)
 app.use(userRoutes)
 
@@ -23,17 +31,7 @@ const io = new socketIo.Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
-app.get('/', (req, res) => {
-  res.status(200).json({
-    message: 'Hello World!'
-  });
-});
-
-
-const dbUser = process.env.DB_USER;
-const dbPass = process.env.DB_PASS;
-
-mongoose.connect(`mongodb+srv://${dbUser}:${dbPass}@cluster.iso2u.mongodb.net/?retryWrites=true&w=majority&appName=Cluster`).then(() => {
+mongoose.connect(MONGO_URL).then(() => {
   app.listen(4000, () => {
     console.log('Listening on port 4000');
   });
