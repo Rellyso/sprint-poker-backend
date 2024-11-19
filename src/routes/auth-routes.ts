@@ -4,7 +4,6 @@ import { Router } from "express";
 import { sign } from "jsonwebtoken";
 import { handleError } from "../utils/error-handler";
 import { getToken } from "../utils/get-token";
-import axios from "axios";
 import { verifyToken } from "../utils/verify-token";
 import passport from "passport";
 
@@ -91,6 +90,25 @@ router.get("/google", passport.authenticate("google", { session: false, scope: [
 router.get(
   "/google/callback",
   passport.authenticate("google", { session: false }),
+  async (req, res) => {
+    const user = req.user as IUser;
+
+    const token = sign({ userId: user._id }, process.env.JWT_SECRET!, {
+      expiresIn: "24h",
+    });
+
+    res.redirect(`${process.env.CLIENT_URL}/login/success?token=${token}`);
+  }
+);
+
+router.get(
+  "/github",
+  passport.authenticate("github", { session: false, scope: ["user:email"] })
+);
+
+router.get(
+  "/github/callback",
+  passport.authenticate("github", { session: false }),
   async (req, res) => {
     const user = req.user as IUser;
 
