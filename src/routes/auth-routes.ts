@@ -71,7 +71,7 @@ router.post("/login", async (req, res) => {
     return;
   }
 
-  const token = sign({ userId: user._id }, process.env.JWT_SECRET!, {
+  const token = sign({ userId: user._id, name: user.name, email: user.email }, process.env.JWT_SECRET!, {
     expiresIn: "24h",
   });
   res
@@ -93,7 +93,7 @@ router.get(
   async (req, res) => {
     const user = req.user as IUser;
 
-    const token = sign({ userId: user._id }, process.env.JWT_SECRET!, {
+    const token = sign({ userId: user._id, name: user.name, email: user.email }, process.env.JWT_SECRET!, {
       expiresIn: "24h",
     });
 
@@ -112,7 +112,7 @@ router.get(
   async (req, res) => {
     const user = req.user as IUser;
 
-    const token = sign({ userId: user._id }, process.env.JWT_SECRET!, {
+    const token = sign({ userId: user._id, name: user.name, email: user.email }, process.env.JWT_SECRET!, {
       expiresIn: "24h",
     });
 
@@ -129,9 +129,11 @@ router.get("/validate-token", async (req, res) => {
   }
 
   try {
-    const data: { userId: string } = verifyToken(token) as { userId: string };
+    const data = verifyToken(token);
+    console.log(data)
     const user = await User.findById(data.userId);
     if (!user) {
+
       res.status(401).send({ message: "Usuário não encontrado" });
       return;
     }

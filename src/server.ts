@@ -25,6 +25,7 @@ initSocket(server)
 
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
+app.use('/api/session', sessionRoutes)
 
 
 mongoose.connect(MONGO_URL).then(() => {
