@@ -2,6 +2,8 @@ import { Server } from "socket.io";
 import { verifyToken } from "../utils/verify-token";
 import { configDotenv } from "dotenv";
 import { User } from "../models/user";
+import { setupRoomEvents } from "../modules/room/events/room-events";
+import { RoomService } from "../modules/room/services/room-service";
 
 
 interface UserSession {
@@ -20,6 +22,7 @@ configDotenv();
 
 export const initSocket = (httpServer: any) => {
   io = new Server(httpServer);
+  const roomService = new RoomService();
 
   io.use((socket, next) => {
     const token = socket.handshake.auth.token as string;
@@ -39,99 +42,57 @@ export const initSocket = (httpServer: any) => {
   });
 
   io.on('connect', (socket) => {
-    socket.on('join-room', async (roomId) => {
+    setupRoomEvents(io, socket, roomService);
+    console.log('Usuário conectado:', socket.id);
+
+    socket.on('disconnect', async () => {
       try {
-        // Recupera informações do usuário do banco
+        const roomId = socket.data.roomId;
         const userId = socket.data.userId;
-        const user = await User.findById(userId);
 
-        if (!user) {
-          socket.emit('error', 'Usuário não encontrado');
-          return;
+        if (roomId && userId) {
+          const { votes } = await roomService.removeUserFromSession(roomId, userId);
+
+          const usersWithDetails = await Promise.all(
+            votes.map(async (vote) => {
+              const user = await User.findById(vote.userId);
+              return {
+                userId: vote.userId,
+                name: user?.name || '',
+                email: user?.email || '',
+                hasVoted: vote.vote !== null
+              };
+            })
+          );
+
+          io.to(roomId).emit('users-online', usersWithDetails);
         }
-
-        // Inicializa o mapa de sessões da sala se não existir
-        if (!roomSessions.has(roomId)) {
-          roomSessions.set(roomId, new Map());
-        }
-
-        const roomSessionUsers = roomSessions.get(roomId);
-
-        // Verifica se usuário já está na sala
-        if (!roomSessionUsers?.has(userId)) {
-          // Cria nova sessão para o usuário
-          roomSessionUsers?.set(userId, {
-            userId,
-            socketIds: new Set([socket.id]),
-            userData: {
-              name: user.name,
-              email: user.email
-            }
-          });
-
-          // Emite evento de usuário entrou
-          io.to(roomId).emit('user-joined', {
-            userId,
-            name: user.name,
-            email: user.email
-          });
-        } else {
-          // Adiciona novo socket ID para usuário existente
-          const existingSession = roomSessionUsers.get(userId);
-          existingSession?.socketIds.add(socket.id);
-        }
-
-        // Atualiza lista de usuários na sala
-        const roomSessionUsersArray = Array.from(roomSessions.get(roomId)?.values() || []);
-        io.to(roomId).emit('room-users',
-
-          roomSessionUsersArray.map(session => ({
-            userId: session.userId,
-            name: session.userData.name,
-            email: session.userData.email
-          }))
-        );
-
-        // Junta socket à sala
-        socket.join(roomId);
-        socket.data.roomId = roomId;
-        socket.data.userId = userId;
-
       } catch (error) {
-        console.error('Erro ao entrar na sala', error);
-      }
-    });
-
-    socket.on('disconnect', () => {
-      const roomId = socket.data.roomId;
-      const userId = socket.data.userId;
-
-      if (roomId && userId) {
-        const roomSessionUsers = roomSessions.get(roomId);
-
-        if (roomSessionUsers && roomSessionUsers.has(userId)) {
-          const userSession = roomSessionUsers.get(userId);
-
-          // Remove socket específico
-          userSession?.socketIds.delete(socket.id);
-
-          // Se não houver mais sockets, remove sessão do usuário
-          if (userSession?.socketIds.size === 0) {
-            roomSessionUsers.delete(userId);
-
-            // Emite atualização de usuários na sala
-            io.to(roomId).emit('room-users',
-              Array.from(roomSessionUsers.values()).map(session => ({
-                userId: session.userId,
-                name: session.userData.name,
-                email: session.userData.email
-              }))
-            );
-          }
-        }
+        console.error('Erro ao tratar desconexão', error);
       }
     });
   });
+
+  // Adiciona monitoramento de salas
+  setInterval(() => {
+    const rooms = io.sockets.adapter.rooms;
+
+    rooms.forEach((sockets, roomId) => {
+      // Ignora salas reservadas para sockets individuais (não são "rooms" reais)
+      if (io.sockets.adapter.sids.has(roomId)) {
+        return;
+      }
+
+      const connectedSockets = io.sockets.adapter.rooms.get(roomId);
+
+      if (!connectedSockets || connectedSockets.size === 0) {
+        console.log(`Sala ${roomId} está vazia. Limpando dados...`);
+        // Execute a lógica para limpar os dados da sala
+        roomService.cleanUpRoom(roomId); // Certifique-se de implementar isso no serviço
+        roomSessions.delete(roomId); // Limpa também do Map local, se necessário
+      }
+    });
+  }, 60000); // Intervalo de 60 segundos
 
   return io;
 };

@@ -92,7 +92,7 @@ router.post("/join/:token", async (req, res) => {
 router.post("/vote/:token", async (req, res) => {
   const { token } = req.params;
   const voteSchema = z.object({
-    vote: z.number(),
+    vote: z.string(),
   });
 
   try {

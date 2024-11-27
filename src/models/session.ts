@@ -2,20 +2,20 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export interface IVote {
   userId: string;
-  vote: number;  
+  vote: string | null;
 }
 
 export interface ISession extends Document {
-  title: string;  
-  token: string;  
-  owner: string;  
-  votes: IVote[]; 
+  title: string;
+  token: string;
+  owner: string;
+  votes: IVote[];
   closed: boolean;
 }
 
 const voteSchema = new Schema<IVote>({
   userId: { type: String, required: true },
-  vote: { type: Number, required: true },
+  vote: { type: String, required: false, default: null },
 });
 
 const sessionSchema = new Schema<ISession>({
