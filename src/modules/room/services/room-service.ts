@@ -1,9 +1,32 @@
-import { ISession, IVote, Session } from "../../../models/session";
+import { GameType, ISession, IVote, Session } from "../../../models/session";
 import { User } from "../../../models/user";
 import { UserSession, UserJoinData } from "../types/room";
 
 export class RoomService {
   private roomSessions: Map<string, Map<string, UserSession>> = new Map();
+
+  async getRoomPlayers(votes: IVote[]): Promise<UserJoinData[]> {
+    console.log('Votos recebidos:', votes);
+
+    try {
+      const roomPlayers = await Promise.all(
+        votes.map(async (vote) => {
+          const user = await User.findById(vote.userId);
+          return {
+            userId: vote.userId,
+            name: user?.name || '',
+            email: user?.email || '',
+            vote: vote.vote
+          };
+        })
+      )
+
+      return roomPlayers.sort((a, b) => a.name.localeCompare(b.name));
+    } catch (error) {
+      console.error('Erro ao recuperar usuários da sala', error);
+      return [];
+    }
+  }
 
   async joinRoom(
     roomId: string,
@@ -71,16 +94,18 @@ export class RoomService {
     }
   }
 
-  async addUserToSession(
+  async addPlayerToSession(
     sessionToken: string,
     userId: string
-  ): Promise<{ votes: IVote[], session: ISession | null }> {
+  ): Promise<{ playersInRoom: UserJoinData[], session: ISession | null }> {
+    let playersInRoom: UserJoinData[] = [];
+
     try {
       // Recupera a sessão
       const session = await Session.findOne({ token: sessionToken });
 
       if (!session) {
-        return { votes: [], session: null };
+        return { playersInRoom: [], session: null };
       }
 
       // Verifica se o usuário já está na lista de votos
@@ -97,20 +122,22 @@ export class RoomService {
         await session.save();
       }
 
+      playersInRoom = await this.getRoomPlayers(session.votes);
+
       return {
-        votes: session.votes,
+        playersInRoom,
         session
       };
     } catch (error) {
       console.error('Erro ao adicionar usuário à sessão', error);
-      return { votes: [], session: null };
+      return { playersInRoom: [], session: null };
     }
   }
 
   async removeUserFromSession(
     sessionToken: string,
     userId: string
-  ): Promise<{ votes: IVote[], session: ISession | null }> {
+  ): Promise<ISession | null> {
     try {
       // Recupera a sessão e remove o usuário dos votos
       const session = await Session.findOneAndUpdate(
@@ -118,18 +145,10 @@ export class RoomService {
         { $pull: { votes: { userId } } },
         { new: true } // Retorna a sessão atualizada
       );
-
-      if (!session) {
-        return { votes: [], session: null };
-      }
-
-      return {
-        votes: session.votes,
-        session
-      };
+      return session
     } catch (error) {
       console.error('Erro ao remover usuário da sessão', error);
-      return { votes: [], session: null };
+      return null;
     }
   }
 
@@ -143,14 +162,11 @@ export class RoomService {
     if (roomSessionUsers && roomSessionUsers.has(userId)) {
       const userSession = roomSessionUsers.get(userId)!;
 
-      // Remove socket específico
       userSession.socketIds.delete(socketId);
 
-      // Se não houver mais sockets, remove sessão do usuário
       if (userSession.socketIds.size === 0) {
         roomSessionUsers.delete(userId);
 
-        // Retorna usuários atualizados
         return Array.from(roomSessionUsers.values()).map(session => ({
           userId: session.userId,
           name: session.userData.name,
@@ -166,70 +182,70 @@ export class RoomService {
   async submitVote(
     sessionToken: string,
     userId: string,
-    vote: string
-  ): Promise<{ votes: UserJoinData[], session: ISession | null }> {
+    vote: string | null
+  ): Promise<{ players: UserJoinData[], session: ISession | null }> {
     try {
-      // Recupera a sessão
       const session = await Session.findOne({ token: sessionToken });
 
       if (!session) {
-        return { votes: [], session: null };
+        return { players: [], session: null };
       }
 
-      // Recupera informações do usuário
       const user = await User.findById(userId);
       if (!user) {
-        return { votes: [], session: null };
+        return { players: [], session: null };
       }
 
-      // Verifica se a sessão já está fechada
       if (session.closed) {
         throw new Error('Sessão já fechada');
       }
 
-      // Remove voto anterior do usuário, se existir
       session.votes = session.votes.filter(v => v.userId !== userId);
 
-      // Adiciona novo voto
       session.votes.push({ userId, vote });
 
-      // Salva a sessão
       await session.save();
 
-      // Recupera informações dos usuários que votaram
-      const votedUsers = await Promise.all(
-        session.votes.map(async (vote) => {
-          const votedUser = await User.findById(vote.userId);
-          return {
-            userId: vote.userId,
-            name: votedUser?.name || '',
-            email: votedUser?.email || ''
-          };
-        })
-      );
+      const updatedPlayers = await this.getRoomPlayers(session.votes)
 
       return {
-        votes: votedUsers,
+        players: updatedPlayers,
         session
       };
     } catch (error) {
       console.error('Erro ao submeter voto', error);
-      return { votes: [], session: null };
+      return { players: [], session: null };
     }
   }
 
-  async revealVotes(sessionToken: string): Promise<ISession | null> {
+  async updateRevealVotes(roomId: string, result_revealed: boolean): Promise<ISession | null> {
     try {
       // Encontra e fecha a sessão
       const session = await Session.findOneAndUpdate(
-        { token: sessionToken },
-        { closed: true },
+        { token: roomId },
+        { result_revealed },
         { new: true }
       );
 
       return session;
     } catch (error) {
       console.error('Erro ao revelar votos', error);
+      return null;
+    }
+  }
+
+  async updateSessionGameType(sessionToken: string, gameType: GameType): Promise<ISession | null> {
+    try {
+      // Encontra e fecha a sessão
+      const session = await Session.findOneAndUpdate(
+        { token: sessionToken },
+        { game_type: gameType },
+        { new: true }
+      );
+
+      return session;
+    } catch (error) {
+      console.error('Erro ao atualizar o tipo de jogo', error);
       return null;
     }
   }

@@ -16,10 +16,5 @@ export interface UserJoinData {
 export interface Vote {
   userId: string;
   value: string | number;
-  revealed: boolean;
-}
-
-export interface RoomVoteState {
-  votes: Map<string, Vote>;
   isRevealed: boolean;
 }
