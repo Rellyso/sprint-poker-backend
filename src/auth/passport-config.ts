@@ -13,13 +13,17 @@ passport.use(
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       callbackURL: "/api/auth/google/callback",
       scope: ["email", "profile"],
+      proxy: true,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails?.[0]?.value;
 
         if (!email) {
-          return done(new Error("E-mail não disponível no perfil do Google"), undefined);
+          return done(
+            new Error("E-mail não disponível no perfil do Google"),
+            undefined
+          );
         }
 
         let user = await User.findOne({ email });
@@ -51,12 +55,20 @@ passport.use(
       callbackURL: "/api/auth/github/callback",
     },
 
-    async (accessToken: string, refreshToken: string, profile: any, done: any) => {
+    async (
+      accessToken: string,
+      refreshToken: string,
+      profile: any,
+      done: any
+    ) => {
       try {
         const email = profile.emails?.[0]?.value;
 
         if (!email) {
-          return done(new Error("E-mail não disponível no perfil do GitHub"), undefined);
+          return done(
+            new Error("E-mail não disponível no perfil do GitHub"),
+            undefined
+          );
         }
 
         let user = await User.findOne({ email });
