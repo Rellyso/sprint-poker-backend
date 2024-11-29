@@ -11,7 +11,7 @@ router.use((req, res, next) => {
   const token = getToken(req);
   if (!token) {
     res.status(401).json({ message: "Token não fornecido" });
-    return
+    return;
   }
 
   try {
@@ -20,7 +20,7 @@ router.use((req, res, next) => {
     next();
   } catch {
     res.status(401).json({ message: "Token inválido" });
-    return
+    return;
   }
 });
 
@@ -31,12 +31,12 @@ router.post("/create", async (req, res) => {
 
   try {
     const { title } = sessionSchema.parse(req.body);
-    const token = nanoid(10)
+    const token = nanoid(10);
 
     const sessionExists = await Session.findOne({ token });
     if (sessionExists) {
       res.status(400).json({ message: "Token já utilizado para outra sessão" });
-      return
+      return;
     }
 
     const session = new Session({
@@ -61,12 +61,14 @@ router.get("/exists/:token", async (req, res) => {
   try {
     const session = await Session.findOne({ token });
     if (session) {
-      res.status(200).json({ message: "Sessão encontrada", exists: true, session });
+      res
+        .status(200)
+        .json({ message: "Sessão encontrada", exists: true, session });
     } else {
-      res.status(404).json({ message: "Sessão não encontrada", exists: false, });
+      res.status(404).json({ message: "Sessão não encontrada", exists: false });
     }
   } catch (err) {
-    console.log(err)
+    console.log(err);
     res.status(500).json({ message: "Erro ao verificar a sessão", error: err });
   }
 });
@@ -79,7 +81,7 @@ router.post("/join/:token", async (req, res) => {
 
     if (!session) {
       res.status(404).json({ message: "Sessão não encontrada" });
-      return
+      return;
     }
 
     res.status(200).json({ message: "Entrou na sessão com sucesso", session });
@@ -101,7 +103,7 @@ router.post("/vote/:token", async (req, res) => {
     const session = await Session.findOne({ token });
     if (!session || session.closed) {
       res.status(400).json({ message: "Sessão indisponível para votos" });
-      return
+      return;
     }
 
     session.votes.push({ userId: req.userId as string, vote });
@@ -122,12 +124,14 @@ router.post("/close/:token", async (req, res) => {
 
     if (!session) {
       res.status(404).json({ message: "Sessão não encontrada" });
-      return
+      return;
     }
 
     if (session.owner !== req.userId) {
-      res.status(403).json({ message: "Apenas o criador pode encerrar a sessão" });
-      return
+      res
+        .status(403)
+        .json({ message: "Apenas o criador pode encerrar a sessão" });
+      return;
     }
 
     session.closed = true;
