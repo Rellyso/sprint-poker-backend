@@ -10,7 +10,6 @@ import { MONGO_URL } from "./constants/mongo-url";
 import { sessionRoutes } from "./routes/session-routes";
 import { initSocket } from "./config/socket";
 
-const PORT = 4000;
 configDotenv();
 const app = express();
 const server = http.createServer(app);
@@ -30,6 +29,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/session", sessionRoutes);
 
 mongoose.connect(MONGO_URL).then(() => {
+  const PORT = Number(process.env.PORT) || 4000;
   server.listen(PORT, () => {
     console.log(`Listening on port ${PORT}`);
   });
