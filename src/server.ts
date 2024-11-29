@@ -1,28 +1,38 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import { configDotenv } from 'dotenv';
-import { authRoutes } from './routes/auth-routes';
+import express from "express";
+import mongoose from "mongoose";
+import { configDotenv } from "dotenv";
+import { authRoutes } from "./routes/auth-routes";
+import cors from "cors";
+import http from "http";
+import { userRoutes } from "./routes/user-routes";
+import passport from "./auth/passport-config";
+import { MONGO_URL } from "./constants/mongo-url";
+import { sessionRoutes } from "./routes/session-routes";
+import { initSocket } from "./config/socket";
 
 configDotenv();
 const app = express();
+const server = http.createServer(app);
 
-app.use(express.json())
-app.use('/api/auth', authRoutes)
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+  })
+);
+app.use(express.json());
+app.use(passport.initialize());
+initSocket(server);
 
-app.get('/', (req, res) => {
-  res.status(200).json({
-    message: 'Hello World!'
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/session", sessionRoutes);
+
+mongoose.connect(MONGO_URL).then(() => {
+  const PORT = Number(process.env.PORT) || 4000;
+  server.listen(PORT, () => {
+    console.log(`Listening on port ${PORT}`);
   });
+
+  console.log("Connected to MongoDB");
 });
-
-
-const dbUser = process.env.DB_USER;
-const dbPass = process.env.DB_PASS;
-
-mongoose.connect(`mongodb+srv://${dbUser}:${dbPass}@cluster.iso2u.mongodb.net/?retryWrites=true&w=majority&appName=Cluster`).then(() => {
-  app.listen(4000, () => {
-    console.log('Listening on port 4000');
-  });
-
-  console.log('Connected to MongoDB');
-})
