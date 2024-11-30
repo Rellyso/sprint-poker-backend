@@ -24,6 +24,9 @@ app.use(express.json());
 app.use(passport.initialize());
 initSocket(server);
 
+app.get("/", (req, res) => {
+  res.send("Testing server response!");
+});
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/session", sessionRoutes);
