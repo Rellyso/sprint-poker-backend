@@ -9,6 +9,7 @@ import passport from './auth/passport-config'
 import { MONGO_URL } from './constants/mongo-url'
 import { sessionRoutes } from './routes/session-routes'
 import { initSocket } from './config/socket'
+import { storyRoutes } from './routes/story-routes'
 
 configDotenv()
 const app = express()
@@ -29,7 +30,8 @@ app.get('/', (req, res) => {
 })
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
-app.use('/api/session', sessionRoutes)
+app.use('/api/sessions', sessionRoutes)
+app.use('/api/stories', storyRoutes)
 
 mongoose.connect(MONGO_URL).then(() => {
   const PORT = Number(process.env.PORT) || 4000

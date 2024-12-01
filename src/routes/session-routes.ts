@@ -143,4 +143,22 @@ router.post('/close/:token', async (req, res) => {
   }
 })
 
+router.get('/:token/stories', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const session = await Session.findOne({ token }).populate('stories');
+
+    if (!session) {
+      res.status(404).json({ message: 'Sessão não encontrada' });
+      return 
+    }
+
+    res.json(session.stories);
+  } catch (error) {
+    res.status(500).json({ message: 'Erro ao buscar histórias', error });
+  }
+});
+
+
 export const sessionRoutes = router

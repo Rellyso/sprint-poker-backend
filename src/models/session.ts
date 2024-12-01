@@ -1,4 +1,5 @@
-import mongoose, { Document, Schema } from 'mongoose'
+import mongoose, { Document, ObjectId, Schema } from 'mongoose'
+import { IStory } from './story'
 
 export interface IVote {
   userId: string
@@ -17,6 +18,7 @@ export interface ISession extends Document {
   closed: boolean
   game_type: GameType
   result_revealed: boolean
+  stories: Array<ObjectId | IStory>;
 }
 
 const voteSchema = new Schema<IVote>({
@@ -31,7 +33,12 @@ const sessionSchema = new Schema<ISession>({
   result_revealed: { type: Boolean, default: false },
   votes: { type: [voteSchema], default: [] },
   closed: { type: Boolean, default: false },
-  game_type: { type: String, default: GameType.fibonacci }
+  game_type: { type: String, default: GameType.fibonacci },
+  stories: [{ 
+    type: Schema.Types.ObjectId, 
+    ref: 'Story',
+    default: [] 
+  }]
 })
 
 export const Session = mongoose.model<ISession>('Session', sessionSchema)
