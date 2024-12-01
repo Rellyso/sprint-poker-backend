@@ -4,14 +4,17 @@
   "description": "",
   "main": "index.js",
   "engines": {
-    "node": "18"
+    "node": ">=18"
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsup src/server.ts",
     "start": "node dist/server.js --experimental-require-module",
     "clean": "rm -rf dist",
-    "production": "npm run clean && npm run build && npm run start"
+    "production": "npm run clean && npm run build && npm run start",
+    "format": "prettier --write .",
+    "lint": "eslint . ",
+    "lint:fix": "eslint . --fix "
   },
   "keywords": [],
   "author": "Rellyson Douglas",
@@ -36,6 +39,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@eslint/js": "^9.16.0",
+    "@rocketseat/eslint-config": "^2.2.2",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.17",
     "@types/debug": "^4.1.12",
@@ -46,9 +51,13 @@
     "@types/passport-github2": "^1.2.9",
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/socket.io": "^3.0.1",
+    "eslint": "^8.57.1",
+    "globals": "^15.12.0",
+    "prettier": "^3.4.1",
     "ts-node": "^10.9.2",
     "tsup": "^8.3.0",
     "tsx": "^4.19.1",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.16.0"
   }
 }
