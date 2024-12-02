@@ -11,6 +11,7 @@ export interface UserJoinData {
   userId: string
   name: string
   email: string
+  vote: string | null
 }
 
 export interface Vote {

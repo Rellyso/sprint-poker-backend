@@ -2,10 +2,10 @@ import { ObjectId } from 'mongoose'
 import { GameType, ISession, IVote, Session } from '../../../models/session'
 import { Story } from '../../../models/story'
 import { User } from '../../../models/user'
-import { UserSession, UserJoinData } from '../types/room'
+import { UserJoinData } from '../types/room'
+import { AppError } from '../../../errors/api-error'
 
 export class RoomService {
-  private roomSessions: Map<string, Map<string, UserSession>> = new Map()
 
   async getRoomPlayers(votes: IVote[]): Promise<UserJoinData[]> {
     console.log('Votos recebidos:', votes)
@@ -26,75 +26,7 @@ export class RoomService {
       return roomPlayers.sort((a, b) => a.name.localeCompare(b.name))
     } catch (error) {
       console.error('Erro ao recuperar usuários da sala', error)
-      return []
-    }
-  }
-
-  async joinRoom(
-    roomId: string,
-    userId: string,
-    socketId: string
-  ): Promise<{
-    userSession: UserSession | null
-    roomUsers: UserJoinData[]
-  }> {
-    try {
-      // Recupera informações do usuário do banco
-      const user = await User.findById(userId)
-
-      if (!user) {
-        return { userSession: null, roomUsers: [] }
-      }
-
-      // Inicializa o mapa de sessões da sala se não existir
-      if (!this.roomSessions.has(roomId)) {
-        this.roomSessions.set(roomId, new Map())
-      }
-
-      const roomSessionUsers = this.roomSessions.get(roomId)
-
-      let userSession: UserSession
-
-      // Verifica se usuário já está na sala
-      if (!roomSessionUsers?.has(userId)) {
-        // Cria nova sessão para o usuário
-        userSession = {
-          userId,
-          socketIds: new Set([socketId]),
-          userData: {
-            name: user.name,
-            email: user.email
-          }
-        }
-        roomSessionUsers?.set(userId, userSession)
-      } else {
-        // Adiciona novo socket ID para usuário existente
-        userSession = roomSessionUsers.get(userId)!
-        userSession.socketIds.add(socketId)
-      }
-
-      // Converte sessões de usuários para formato de join
-      const roomUsers = Array.from(roomSessionUsers?.values() || []).map(
-        (session) => ({
-          userId: session.userId,
-          name: session.userData.name,
-          email: session.userData.email
-        })
-      )
-
-      return { userSession, roomUsers }
-    } catch (error) {
-      console.error('Erro ao entrar na sala', error)
-      return { userSession: null, roomUsers: [] }
-    }
-  }
-
-  async getSession(sessionToken: string): Promise<ISession | null> {
-    try {
-      return await Session.findOne({ token: sessionToken })
-    } catch (error) {
-      console.error('Erro ao recuperar sessão', error)
-      return null
+      throw error
     }
   }
 
@@ -134,7 +66,7 @@ export class RoomService {
       }
     } catch (error) {
       console.error('Erro ao adicionar usuário à sessão', error)
-      return { playersInRoom: [], session: null }
+      throw error
     }
   }
 
@@ -143,43 +75,16 @@ export class RoomService {
     userId: string
   ): Promise<ISession | null> {
     try {
-      // Recupera a sessão e remove o usuário dos votos
       const session = await Session.findOneAndUpdate(
         { token: sessionToken },
         { $pull: { votes: { userId } } },
-        { new: true } // Retorna a sessão atualizada
+        { new: true }
       )
       return session
     } catch (error) {
       console.error('Erro ao remover usuário da sessão', error)
       return null
     }
-  }
-
-  removeUserSocket(
-    roomId: string,
-    userId: string,
-    socketId: string
-  ): UserJoinData[] | null {
-    const roomSessionUsers = this.roomSessions.get(roomId)
-
-    if (roomSessionUsers && roomSessionUsers.has(userId)) {
-      const userSession = roomSessionUsers.get(userId)!
-
-      userSession.socketIds.delete(socketId)
-
-      if (userSession.socketIds.size === 0) {
-        roomSessionUsers.delete(userId)
-
-        return Array.from(roomSessionUsers.values()).map((session) => ({
-          userId: session.userId,
-          name: session.userData.name,
-          email: session.userData.email
-        }))
-      }
-    }
-
-    return null
   }
 
   async submitVote(
@@ -189,9 +94,8 @@ export class RoomService {
   ): Promise<{ players: UserJoinData[]; session: ISession | null }> {
     try {
       const session = await Session.findOne({ token: sessionToken })
-
-      if (!session) {
-        return { players: [], session: null }
+      if (!session || session.closed) {
+        throw new AppError('Sessão já foi encerrada')
       }
 
       const user = await User.findById(userId)
@@ -199,16 +103,9 @@ export class RoomService {
         return { players: [], session: null }
       }
 
-      if (session.closed) {
-        throw new Error('Sessão já fechada')
-      }
-
       session.votes = session.votes.filter((v) => v.userId !== userId)
-
       session.votes.push({ userId, vote })
-
       await session.save()
-
       const updatedPlayers = await this.getRoomPlayers(session.votes)
 
       return {
@@ -217,7 +114,7 @@ export class RoomService {
       }
     } catch (error) {
       console.error('Erro ao submeter voto', error)
-      return { players: [], session: null }
+      throw new AppError('Sessão já foi encerrada')
     }
   }
 
@@ -252,37 +149,15 @@ export class RoomService {
         { new: true }
       )
 
+      if (!session) {
+        throw new AppError('Sessão não encontrada')
+      }
+
+
       return session
     } catch (error) {
       console.error('Erro ao atualizar o tipo de jogo', error)
-      return null
-    }
-  }
-
-  async getRoomVotes(sessionToken: string): Promise<{
-    votes: IVote[]
-    isRevealed: boolean
-  }> {
-    try {
-      const session = await Session.findOne({ token: sessionToken })
-
-      if (!session) {
-        return {
-          votes: [],
-          isRevealed: false
-        }
-      }
-
-      return {
-        votes: session.votes,
-        isRevealed: session.closed
-      }
-    } catch (error) {
-      console.error('Erro ao recuperar votos da sala', error)
-      return {
-        votes: [],
-        isRevealed: false
-      }
+      throw error
     }
   }
 
@@ -291,11 +166,13 @@ export class RoomService {
       await Session.deleteOne({ token: sessionToken })
     } catch (error) {
       console.error('Erro ao limpar sala', error)
+      throw error
     }
   }
 
   async selectStory({ sessionToken, storyId }: {sessionToken: string, storyId: string}): Promise<ISession> {
-    const session = await Session.findOne({ token: sessionToken });
+    try {
+      const session = await Session.findOne({ token: sessionToken });
     
     if (!session) {
       throw new Error('Sessão não encontrada');
@@ -312,18 +189,27 @@ export class RoomService {
     const sessionSaved = await session.save();
 
     return sessionSaved;
+    } catch (error) {
+      console.error('Erro ao selecionar história', error);
+      throw error;
+    }
   }
 
   async deselectStory(sessionToken: string): Promise<ISession> {
-    const session = await Session.findOne({ token: sessionToken });
+    try {
+      const session = await Session.findOne({ token: sessionToken });
     
     if (!session) {
       throw new Error('Sessão não encontrada');
     }
 
     session.selected_story = null;
-    await session.save();
+    const savedSession = await session.save();
 
-    return session;
+    return savedSession;
+    } catch (error) {
+      console.error('Erro ao desselecionar história', error);
+      throw error;
+    }
   }
 }
