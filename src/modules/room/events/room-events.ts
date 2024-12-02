@@ -107,6 +107,15 @@ export function setupRoomEvents(
       console.error('Erro ao selecionar história', error)
     }
   })
+  
+  socket.on('/room/deselect-story', async ({ roomId }) => {
+    try {
+      const session = await roomService.deselectStory(roomId)
+      io.to(roomId).emit('/room/info', session)
+    } catch (error) {
+      console.error('Erro ao selecionar história', error)
+    }
+  })
 
   // Evento para sair da sala forcadamente
   socket.on('/room/leave', async ({ roomId, userId }) => {

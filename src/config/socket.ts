@@ -5,9 +5,13 @@ import { configDotenv } from 'dotenv'
 import { setupRoomEvents } from '../modules/room/events/room-events'
 import { RoomService } from '../modules/room/services/room-service'
 import { IncomingMessage, ServerResponse } from 'http'
+import { setupStoryEvents } from '../modules/story/events/story-events'
+import { StoryRepository } from '../modules/story/repositories/story-repository'
+import { StoryService } from '../modules/story/services/story-service'
 
 let io: Server
 configDotenv()
+
 
 export const initSocket = (
   httpServer: IServer<typeof IncomingMessage, typeof ServerResponse>
@@ -20,6 +24,8 @@ export const initSocket = (
     }
   })
   const roomService = new RoomService()
+const storyRepository = new StoryRepository()
+  const storyService = new StoryService(storyRepository)
 
   io.use((socket, next) => {
     const token = socket.handshake.auth.token as string
@@ -40,6 +46,7 @@ export const initSocket = (
 
   io.on('connect', (socket) => {
     setupRoomEvents(io, socket, roomService)
+    setupStoryEvents(io, socket, storyService)
   })
 
   setInterval(() => {

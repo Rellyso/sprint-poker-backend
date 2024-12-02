@@ -6,7 +6,7 @@ export interface IStory extends Document {
   code: string;
   link?: string;
   description?: string;
-  score?: number;
+  score?: string;
   session: Types.ObjectId | ISession;
 }
 
@@ -28,7 +28,7 @@ const storySchema = new Schema<IStory>({
     required: false 
   },
   score: { 
-    type: Number, 
+    type: String, 
     required: false,
     default: null 
   },

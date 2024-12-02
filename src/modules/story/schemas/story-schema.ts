@@ -9,5 +9,7 @@ export const CreateStorySchema = z.object({
 });
 
 export const UpdateStoryScoreSchema = z.object({
-  score: z.number().min(0, "Pontuação deve ser um número não negativo")
+  score: z.string({
+    required_error: "A pontuação é obrigatória",
+  })
 });

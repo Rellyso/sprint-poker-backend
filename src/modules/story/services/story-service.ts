@@ -20,7 +20,7 @@ export class StoryService {
     }
   }
 
-  async updateStoryScore(id: string, score: number): Promise<IStory> {
+  async updateStoryScore(id: string, score: string): Promise<IStory> {
     const story = await this.storyRepository.updateScore(id, score);
     
     if (!story) {

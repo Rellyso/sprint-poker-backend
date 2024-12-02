@@ -33,7 +33,7 @@ export class StoryRepository implements IStoryRepository {
     return Story.findById(id);
   }
 
-  async updateScore(id: string, score: number): Promise<IStory | null> {
+  async updateScore(id: string, score: string): Promise<IStory | null> {
     return Story.findByIdAndUpdate(
       id, 
       { score }, 
