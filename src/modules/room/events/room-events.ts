@@ -90,6 +90,24 @@ export function setupRoomEvents(
     }
   })
 
+  socket.on('/room/select-story', async ({ roomId, storyId }) => {
+    try {
+      const session = await roomService.selectStory({ sessionToken: roomId, storyId })
+      io.to(roomId).emit('/room/info', session)
+    } catch (error) {
+      console.error('Erro ao selecionar história', error)
+    }
+  })
+
+  socket.on('/room/deselect-story', async ({ roomId }) => {
+    try {
+      const session = await roomService.deselectStory(roomId)
+      io.to(roomId).emit('/room/info', session)
+    } catch (error) {
+      console.error('Erro ao selecionar história', error)
+    }
+  })
+
   // Evento para sair da sala forcadamente
   socket.on('/room/leave', async ({ roomId, userId }) => {
     try {

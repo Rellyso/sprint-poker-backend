@@ -8,7 +8,7 @@ export class StoryService {
     private storyRepository: IStoryRepository
   ) {}
 
-  async createStory(sessionToken: string, data: CreateStoryDTO): Promise<IStory> {
+  async createStory(data: CreateStoryDTO): Promise<IStory> {
     try {
       return await this.storyRepository.create(data);
     } catch (error) {
@@ -32,6 +32,11 @@ export class StoryService {
 
   async listStoriesBySession(sessionToken: string): Promise<IStory[]> {
     return this.storyRepository.findStoriesBySessionToken(sessionToken);
+  }
+
+
+  async listStoryById(id: string): Promise<IStory | null> {
+    return this.storyRepository.findById(id);
   }
 
   async deleteStory(id: string): Promise<void> {

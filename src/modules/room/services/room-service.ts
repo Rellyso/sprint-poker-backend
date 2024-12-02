@@ -1,4 +1,6 @@
+import { ObjectId } from 'mongoose'
 import { GameType, ISession, IVote, Session } from '../../../models/session'
+import { Story } from '../../../models/story'
 import { User } from '../../../models/user'
 import { UserSession, UserJoinData } from '../types/room'
 
@@ -290,5 +292,38 @@ export class RoomService {
     } catch (error) {
       console.error('Erro ao limpar sala', error)
     }
+  }
+
+  async selectStory({ sessionToken, storyId }: {sessionToken: string, storyId: string}): Promise<ISession> {
+    const session = await Session.findOne({ token: sessionToken });
+    
+    if (!session) {
+      throw new Error('Sessão não encontrada');
+    }
+
+    const story = await Story.findById(storyId);
+    
+    if (!story) {
+      throw new Error('História não encontrada');
+    }
+
+    session.selected_story = story._id as ObjectId;
+
+    const sessionSaved = await session.save();
+
+    return sessionSaved;
+  }
+
+  async deselectStory(sessionToken: string): Promise<ISession> {
+    const session = await Session.findOne({ token: sessionToken });
+    
+    if (!session) {
+      throw new Error('Sessão não encontrada');
+    }
+
+    session.selected_story = null;
+    await session.save();
+
+    return session;
   }
 }

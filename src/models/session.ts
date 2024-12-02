@@ -19,6 +19,7 @@ export interface ISession extends Document {
   game_type: GameType
   result_revealed: boolean
   stories: Array<ObjectId | IStory>;
+  selected_story?: ObjectId | IStory | null;
 }
 
 const voteSchema = new Schema<IVote>({
@@ -38,7 +39,13 @@ const sessionSchema = new Schema<ISession>({
     type: Schema.Types.ObjectId, 
     ref: 'Story',
     default: [] 
-  }]
+  }],
+  selected_story: {
+    type: Schema.Types.ObjectId,
+    ref: 'Story',
+    required: false,
+    default: null
+  }
 })
 
 export const Session = mongoose.model<ISession>('Session', sessionSchema)

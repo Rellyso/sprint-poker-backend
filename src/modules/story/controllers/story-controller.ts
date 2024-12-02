@@ -14,7 +14,7 @@ export class StoryController {
   async create(req: Request, res: Response): Promise<void> {
     try {
       const data = CreateStorySchema.parse(req.body);
-      const story = await this.storyService.createStory(data.sessionToken, data);
+      const story = await this.storyService.createStory(data);
       res.status(201).json(story);
       return 
     } catch (error) {
@@ -51,6 +51,22 @@ export class StoryController {
       const stories = await this.storyService.listStoriesBySession(sessionToken);
       res.json(stories);
       return 
+    } catch (error) {
+      if (error instanceof Error) {
+        res.status(400).json({ message: error.message });
+        return
+      }
+      res.status(500).json({ message: 'Erro interno do servidor' });
+      return
+    }
+  }
+
+  async listById(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const story = await this.storyService.listStoryById(id);
+      res.json(story);
+      return
     } catch (error) {
       if (error instanceof Error) {
         res.status(400).json({ message: error.message });
