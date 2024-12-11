@@ -1,10 +1,10 @@
 import { ObjectId } from 'mongoose';
 
 export interface IStory {
-  id?: string;
+  _id?: string;
   name: string;
   link?: string;
   description?: string;
-  score?: number;
-  session: ObjectId;
+  score?: string;
+  session: ObjectId | string;
 }
