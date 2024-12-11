@@ -6,7 +6,6 @@ import { UserJoinData } from '../types/room'
 import { AppError } from '../../../errors/api-error'
 
 export class RoomService {
-
   async getRoomPlayers(votes: IVote[]): Promise<UserJoinData[]> {
     console.log('Votos recebidos:', votes)
 
@@ -137,6 +136,33 @@ export class RoomService {
     }
   }
 
+  async resetVotes(
+    roomId: string
+  ): Promise<{ session: ISession; players: UserJoinData[] }> {
+    try {
+      // Encontra e fecha a sessão
+      const session = await Session.findOne({ token: roomId })
+
+      if (!session || session.closed) {
+        throw new AppError('Sessão já foi encerrada')
+      }
+
+      session.votes =
+        session?.votes.map((vote) => {
+          return { ...vote, vote: null }
+        }) || []
+
+      await session.save()
+
+      const players = await this.getRoomPlayers(session.votes)
+
+      return { session, players }
+    } catch (error) {
+      console.error('Erro ao resetar votos', error)
+      throw error
+    }
+  }
+
   async updateSessionGameType(
     sessionToken: string,
     gameType: GameType
@@ -152,7 +178,6 @@ export class RoomService {
       if (!session) {
         throw new AppError('Sessão não encontrada')
       }
-
 
       return session
     } catch (error) {
@@ -170,46 +195,52 @@ export class RoomService {
     }
   }
 
-  async selectStory({ sessionToken, storyId }: {sessionToken: string, storyId: string}): Promise<ISession> {
+  async selectStory({
+    sessionToken,
+    storyId
+  }: {
+    sessionToken: string
+    storyId: string
+  }): Promise<ISession> {
     try {
-      const session = await Session.findOne({ token: sessionToken });
-    
-    if (!session) {
-      throw new Error('Sessão não encontrada');
-    }
+      const session = await Session.findOne({ token: sessionToken })
 
-    const story = await Story.findById(storyId);
-    
-    if (!story) {
-      throw new Error('História não encontrada');
-    }
+      if (!session) {
+        throw new Error('Sessão não encontrada')
+      }
 
-    session.selected_story = story._id as ObjectId;
+      const story = await Story.findById(storyId)
 
-    const sessionSaved = await session.save();
+      if (!story) {
+        throw new Error('História não encontrada')
+      }
 
-    return sessionSaved;
+      session.selected_story = story._id as ObjectId
+
+      const sessionSaved = await session.save()
+
+      return sessionSaved
     } catch (error) {
-      console.error('Erro ao selecionar história', error);
-      throw error;
+      console.error('Erro ao selecionar história', error)
+      throw error
     }
   }
 
   async deselectStory(sessionToken: string): Promise<ISession> {
     try {
-      const session = await Session.findOne({ token: sessionToken });
-    
-    if (!session) {
-      throw new Error('Sessão não encontrada');
-    }
+      const session = await Session.findOne({ token: sessionToken })
 
-    session.selected_story = null;
-    const savedSession = await session.save();
+      if (!session) {
+        throw new Error('Sessão não encontrada')
+      }
 
-    return savedSession;
+      session.selected_story = null
+      const savedSession = await session.save()
+
+      return savedSession
     } catch (error) {
-      console.error('Erro ao desselecionar história', error);
-      throw error;
+      console.error('Erro ao desselecionar história', error)
+      throw error
     }
   }
 }
